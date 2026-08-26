@@ -1,0 +1,12 @@
+{
+  "domain": "dino_media_player",
+  "name": "Dino Media Player",
+  "codeowners": ["@rbridal"],
+  "config_flow": true,
+  "dependencies": ["mqtt"],
+  "documentation": "https://github.com/rbridal/ha-dino-media-player",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/rbridal/ha-dino-media-player/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
