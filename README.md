@@ -1,63 +1,56 @@
-# Home Assistant - Dino Media Player
+# Home Assistant — Dino Yard Player
 
-Custom integration that creates a `media_player` entity for the outdoor Dino media player running on a Raspberry Pi.
+Custom integration that creates a **device** for the outdoor Raspberry Pi player.
 
-Controlled via MQTT. Designed to work with the companion repo: [dino-media-player](https://github.com/rbridal/dino-media-player).
+Companion service: [dino-media-player](https://github.com/rbridal/dino-media-player).
 
-## Features
-- Full `media_player` entity
-- Play / Pause / Resume / Stop
-- Source selector (lists available media files from the Pi)
-- Works over ZeroTier / Nabu Casa
-- HACS custom repository ready from day one
+## Device entities
 
-## Installation (HACS)
+| Entity | Purpose |
+| --- | --- |
+| Availability | Connectivity. When off, the other entities on this device go unavailable. |
+| Media | Select populated from files in `/opt/dino-media-player/media` |
+| Playback state | `playing` / `stopped` |
+| Current media | Filename now selected / playing |
+| Position | Seconds into the track |
+| Duration | Track length in seconds |
+| Play | Start the selected file |
+| Stop | Stop playback |
+
+There is no pause/resume and no `media_player` entity.
+
+## Install (HACS)
 
 1. HACS → Integrations → Custom repositories
-2. Add repository: `https://github.com/rbridal/ha-dino-media-player`
-3. Category: Integration
-4. Download / Install
-5. Restart Home Assistant
-6. Settings → Devices & Services → Add Integration → search for **Dino Media Player**
+2. Add `https://github.com/rbridal/ha-dino-media-player` as **Integration**
+3. Download, restart Home Assistant
+4. Settings → Devices & Services → Add Integration → **Dino Media Player**
+5. Set device name and MQTT topic prefix (`dino/player` unless you changed the Pi)
 
-## Configuration
+Reconfigure later from the integration → Configure.
 
-You will be asked for:
-- MQTT topic prefix (default: `dino/player`)
-- Friendly name (default: `Dino Media Player`)
+After upgrading from v1, remove the old integration entry (it was a lone media player) and add it again so the device and new entities are created.
 
-## MQTT Topics expected from the Pi
-
-The Pi service must publish:
-- `dino/player/state` → `playing` | `paused` | `stopped` | `idle`
-- `dino/player/source` → current filename
-- `dino/player/sources` → JSON array of available filenames
-- `dino/player/available` → `online` | `offline`
-
-And accept commands on:
-- `dino/player/command` with JSON payload
-
-## Automation Example
+## Automation example
 
 ```yaml
-automation:
-  - alias: "Dino Motion - Play Theme"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.wyze_cam_duo_motion  # adjust to your entity
-        to: "on"
-    action:
-      - service: media_player.play_media
-        target:
-          entity_id: media_player.dino_media_player
-        data:
-          media_content_id: "jurassic_park_theme.mp3"
-          media_content_type: "music"
-      # or simply:
-      # - service: media_player.media_play
-      #   target:
-      #     entity_id: media_player.dino_media_player
+alias: Dino motion — play theme
+trigger:
+  - platform: state
+    entity_id: binary_sensor.YOUR_MOTION
+    to: "on"
+action:
+  - service: select.select_option
+    target:
+      entity_id: select.dino_yard_player_media
+    data:
+      option: jurassic_park_theme.mp3
+  - service: button.press
+    target:
+      entity_id: button.dino_yard_player_play
 ```
+
+Entity IDs follow the device name you enter in the GUI.
 
 ## License
 MIT
