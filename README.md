@@ -1,8 +1,24 @@
 # Home Assistant — Dino Yard Player
 
+<p align="center">
+  <img src="logo.svg" width="160" height="160" alt="Green Sinclair-style dinosaur on light gray">
+</p>
+
 Custom integration that creates a **device** for the outdoor Raspberry Pi player.
 
 Companion service: [dino-media-player](https://github.com/rbridal/dino-media-player).
+
+## Logo
+
+Simple green Sinclair-style sauropod on a solid light gray background.
+
+| File | Used by |
+| --- | --- |
+| [`logo.svg`](logo.svg) | GitHub README |
+| [`brand/icon.svg`](brand/icon.svg) | HACS repository brand folder |
+| [`custom_components/dino_media_player/brand/`](custom_components/dino_media_player/brand/) | Home Assistant 2026.3+ local branding (`icon.svg` / `logo.svg`) |
+
+After a HACS update, restart Home Assistant and hard-refresh the browser so the integration and device pick up the mark. HACS itself may still show a placeholder for custom repos until it reads local brand assets.
 
 ## Device entities
 
