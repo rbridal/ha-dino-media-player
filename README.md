@@ -12,13 +12,29 @@ Companion service: [dino-media-player](https://github.com/rbridal/dino-media-pla
 
 Simple green Sinclair-style sauropod on a solid light gray background.
 
-| File | Used by |
-| --- | --- |
-| [`logo.svg`](logo.svg) | GitHub README |
-| [`brand/icon.svg`](brand/icon.svg) | HACS repository brand folder |
-| [`custom_components/dino_media_player/brand/`](custom_components/dino_media_player/brand/) | Home Assistant 2026.3+ local branding (`icon.svg` / `logo.svg`) |
+Home Assistant 2026.3+ serves brand images only as PNG from:
 
-After a HACS update, restart Home Assistant and hard-refresh the browser so the integration and device pick up the mark. HACS itself may still show a placeholder for custom repos until it reads local brand assets.
+`custom_components/dino_media_player/brand/`
+
+Required names (light and dark, 1x and 2x):
+
+- `icon.png` / `icon@2x.png`
+- `dark_icon.png` / `dark_icon@2x.png`
+- `logo.png` / `logo@2x.png`
+- `dark_logo.png` / `dark_logo@2x.png`
+
+SVG copies (`logo.svg`, `brand/icon.svg`) are for GitHub. They are **not** used by `/api/brands/integration/dino_media_player/...`.
+
+Generate the PNG files from a clone:
+
+```bash
+python3 scripts/write_brand_pngs.py
+git add custom_components/dino_media_player/brand brand
+git commit -m "Add HA brand PNGs"
+git push
+```
+
+Then HACS → Update, restart HA, hard-refresh the browser.
 
 ## Device entities
 
