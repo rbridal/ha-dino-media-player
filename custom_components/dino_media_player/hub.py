@@ -27,6 +27,8 @@ class DinoHub:
         self.state = "stopped"
         self.source = ""
         self.sources: list[str] = []
+        self.output = "3.5mm jack"
+        self.outputs: list[str] = ["3.5mm jack", "BT-WUZHI"]
         self.position = 0.0
         self.duration = 0.0
         self.volume = 80
@@ -70,12 +72,15 @@ class DinoHub:
         action: str,
         source: str | None = None,
         volume: int | None = None,
+        output: str | None = None,
     ) -> None:
         payload: dict[str, Any] = {"action": action}
         if source:
             payload["source"] = source
         if volume is not None:
             payload["volume"] = volume
+        if output:
+            payload["output"] = output
         await mqtt.async_publish(
             self.hass,
             f"{self.topic_prefix}/command",
@@ -103,6 +108,16 @@ class DinoHub:
                     self.sources = data if isinstance(data, list) else []
                 except json.JSONDecodeError:
                     _LOGGER.warning("Invalid sources payload: %s", payload)
+            elif topic.endswith("/outputs"):
+                try:
+                    data = json.loads(payload) if payload else []
+                    if isinstance(data, list) and data:
+                        self.outputs = [str(x) for x in data]
+                except json.JSONDecodeError:
+                    _LOGGER.warning("Invalid outputs payload: %s", payload)
+            elif topic.endswith("/output"):
+                if payload:
+                    self.output = payload
             elif topic.endswith("/position"):
                 try:
                     self.position = float(payload or 0)
@@ -125,6 +140,8 @@ class DinoHub:
             f"{self.topic_prefix}/state",
             f"{self.topic_prefix}/source",
             f"{self.topic_prefix}/sources",
+            f"{self.topic_prefix}/output",
+            f"{self.topic_prefix}/outputs",
             f"{self.topic_prefix}/position",
             f"{self.topic_prefix}/duration",
             f"{self.topic_prefix}/volume",
