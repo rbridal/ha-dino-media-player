@@ -29,6 +29,7 @@ class DinoHub:
         self.sources: list[str] = []
         self.position = 0.0
         self.duration = 0.0
+        self.volume = 80
         self._listeners: list[Callable[[], None]] = []
 
     @property
@@ -64,10 +65,17 @@ class DinoHub:
         for listener in list(self._listeners):
             listener()
 
-    async def async_publish_command(self, action: str, source: str | None = None) -> None:
+    async def async_publish_command(
+        self,
+        action: str,
+        source: str | None = None,
+        volume: int | None = None,
+    ) -> None:
         payload: dict[str, Any] = {"action": action}
         if source:
             payload["source"] = source
+        if volume is not None:
+            payload["volume"] = volume
         await mqtt.async_publish(
             self.hass,
             f"{self.topic_prefix}/command",
@@ -105,6 +113,11 @@ class DinoHub:
                     self.duration = float(payload or 0)
                 except ValueError:
                     self.duration = 0.0
+            elif topic.endswith("/volume"):
+                try:
+                    self.volume = max(0, min(100, int(round(float(payload or 0)))))
+                except ValueError:
+                    pass
             self.notify()
 
         topics = [
@@ -114,6 +127,7 @@ class DinoHub:
             f"{self.topic_prefix}/sources",
             f"{self.topic_prefix}/position",
             f"{self.topic_prefix}/duration",
+            f"{self.topic_prefix}/volume",
         ]
         for topic in topics:
             await mqtt.async_subscribe(self.hass, topic, _msg, 1)
