@@ -10,6 +10,8 @@ from .const import DOMAIN
 from .entity import DinoEntity
 from .hub import DinoHub
 
+NONE_OPTION = "none"
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -30,21 +32,30 @@ class DinoSourceSelect(DinoEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        opts = list(self.hub.sources)
+        opts = [NONE_OPTION]
+        for source in self.hub.sources:
+            if source and source not in opts:
+                opts.append(source)
         if self.hub.source and self.hub.source not in opts:
             opts.append(self.hub.source)
-        return opts or ([self.hub.source] if self.hub.source else [""])
+        return opts
 
     @property
-    def current_option(self) -> str | None:
+    def current_option(self) -> str:
         if self.hub.source and self.hub.source in self.options:
             return self.hub.source
-        if self.options and self.options[0]:
-            return self.options[0]
-        return None
+        return NONE_OPTION
 
     async def async_select_option(self, option: str) -> None:
-        await self.hub.async_publish_command("set_source", source=option)
+        if option == NONE_OPTION:
+            self.hub.source = ""
+            self.async_write_ha_state()
+            await self.hub.async_publish_command("stop")
+            return
+        self.hub.source = option
+        self.hub.state = "playing"
+        self.async_write_ha_state()
+        await self.hub.async_publish_command("play", source=option)
 
 
 class DinoOutputSelect(DinoEntity, SelectEntity):
