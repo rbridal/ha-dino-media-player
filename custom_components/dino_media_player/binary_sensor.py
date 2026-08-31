@@ -1,4 +1,4 @@
-"""Availability binary sensor."""
+"""Availability and Bluetooth binary sensors."""
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import (
@@ -20,7 +20,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     hub: DinoHub = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([DinoAvailabilitySensor(hub)])
+    async_add_entities(
+        [DinoAvailabilitySensor(hub), DinoBluetoothConnectedSensor(hub)]
+    )
 
 
 class DinoAvailabilitySensor(DinoEntity, BinarySensorEntity):
@@ -39,3 +41,16 @@ class DinoAvailabilitySensor(DinoEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return self.hub.available
+
+
+class DinoBluetoothConnectedSensor(DinoEntity, BinarySensorEntity):
+    _attr_name = "Bluetooth connected"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_icon = "mdi:bluetooth-connect"
+
+    def __init__(self, hub: DinoHub) -> None:
+        super().__init__(hub, "bluetooth_connected")
+
+    @property
+    def is_on(self) -> bool:
+        return self.hub.bluetooth_connected

@@ -1,6 +1,8 @@
 """Status sensors for the Dino player."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -28,6 +30,8 @@ async def async_setup_entry(
             DinoMediaNameSensor(hub),
             DinoPositionSensor(hub),
             DinoDurationSensor(hub),
+            DinoBluetoothStatusSensor(hub),
+            DinoHeartbeatSensor(hub),
         ]
     )
 
@@ -85,3 +89,32 @@ class DinoDurationSensor(DinoEntity, SensorEntity):
     @property
     def native_value(self) -> float:
         return round(self.hub.duration, 1)
+
+
+class DinoBluetoothStatusSensor(DinoEntity, SensorEntity):
+    _attr_name = "Bluetooth status"
+    _attr_icon = "mdi:bluetooth"
+
+    def __init__(self, hub: DinoHub) -> None:
+        super().__init__(hub, "bluetooth_status")
+
+    @property
+    def native_value(self) -> str:
+        return self.hub.bluetooth_status
+
+
+class DinoHeartbeatSensor(DinoEntity, SensorEntity):
+    _attr_name = "Last heartbeat"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:heart-pulse"
+
+    def __init__(self, hub: DinoHub) -> None:
+        super().__init__(hub, "heartbeat")
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self.hub.last_heartbeat

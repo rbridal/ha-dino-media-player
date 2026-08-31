@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime, timedelta
 import json
 import logging
 from typing import Any
@@ -11,10 +12,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .const import CONF_TOPIC_PREFIX, DOMAIN, MANUFACTURER, MODEL
 
 _LOGGER = logging.getLogger(__name__)
+HEARTBEAT_STALE = timedelta(seconds=45)
 
 
 class DinoHub:
@@ -23,7 +27,7 @@ class DinoHub:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
-        self.available = False
+        self.mqtt_online = False
         self.state = "stopped"
         self.source = ""
         self.sources: list[str] = []
@@ -32,7 +36,10 @@ class DinoHub:
         self.position = 0.0
         self.duration = 0.0
         self.volume = 80
+        self.bluetooth_status = "unknown"
+        self.last_heartbeat: datetime | None = None
         self._listeners: list[Callable[[], None]] = []
+        self._unsub_interval: Callable[[], None] | None = None
 
     @property
     def name(self) -> str:
@@ -43,6 +50,20 @@ class DinoHub:
         return self.entry.options.get(
             CONF_TOPIC_PREFIX, self.entry.data[CONF_TOPIC_PREFIX]
         )
+
+    @property
+    def heartbeat_fresh(self) -> bool:
+        if self.last_heartbeat is None:
+            return False
+        return dt_util.utcnow() - self.last_heartbeat <= HEARTBEAT_STALE
+
+    @property
+    def available(self) -> bool:
+        return self.mqtt_online and self.heartbeat_fresh
+
+    @property
+    def bluetooth_connected(self) -> bool:
+        return self.bluetooth_status == "connected"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -66,6 +87,11 @@ class DinoHub:
     def notify(self) -> None:
         for listener in list(self._listeners):
             listener()
+
+    def async_unload(self) -> None:
+        if self._unsub_interval:
+            self._unsub_interval()
+            self._unsub_interval = None
 
     async def async_publish_command(
         self,
@@ -97,7 +123,14 @@ class DinoHub:
                 payload = payload.decode()
 
             if topic.endswith("/available"):
-                self.available = payload == "online"
+                self.mqtt_online = payload == "online"
+            elif topic.endswith("/heartbeat"):
+                parsed = dt_util.parse_datetime(payload) if payload else None
+                if parsed is not None:
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=dt_util.UTC)
+                    self.last_heartbeat = dt_util.as_utc(parsed)
+                    self.mqtt_online = True
             elif topic.endswith("/state"):
                 self.state = payload or "stopped"
             elif topic.endswith("/source"):
@@ -118,6 +151,8 @@ class DinoHub:
             elif topic.endswith("/output"):
                 if payload:
                     self.output = payload
+            elif topic.endswith("/bluetooth"):
+                self.bluetooth_status = payload or "unknown"
             elif topic.endswith("/position"):
                 try:
                     self.position = float(payload or 0)
@@ -137,14 +172,24 @@ class DinoHub:
 
         topics = [
             f"{self.topic_prefix}/available",
+            f"{self.topic_prefix}/heartbeat",
             f"{self.topic_prefix}/state",
             f"{self.topic_prefix}/source",
             f"{self.topic_prefix}/sources",
             f"{self.topic_prefix}/output",
             f"{self.topic_prefix}/outputs",
+            f"{self.topic_prefix}/bluetooth",
             f"{self.topic_prefix}/position",
             f"{self.topic_prefix}/duration",
             f"{self.topic_prefix}/volume",
         ]
         for topic in topics:
             await mqtt.async_subscribe(self.hass, topic, _msg, 1)
+
+        @callback
+        def _tick(_now) -> None:
+            self.notify()
+
+        self._unsub_interval = async_track_time_interval(
+            self.hass, _tick, timedelta(seconds=15)
+        )
