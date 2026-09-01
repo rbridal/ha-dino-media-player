@@ -1,55 +1,54 @@
-# Home Assistant — Dino Yard Player
+# Home Assistant — Dino Media Player
 
 <p align="center">
   <img src="logo.svg" width="160" height="160" alt="Green Sinclair-style dinosaur on light gray">
 </p>
 
-Custom integration that creates a **device** for the outdoor Raspberry Pi player.
+Custom integration that exposes the outdoor Raspberry Pi player as a **device** in Home Assistant. Motion on the Sinclair dino (Wyze / YoLink) can set volume and start a clip; the Pi does the actual playback.
 
 Companion service: [dino-media-player](https://github.com/rbridal/dino-media-player).
 
+HACS custom repo. Current integration version: **2.4.0**.
+
+## Credits
+
+**THE SHOP / rbridal** specified the product: a real HA device, HACS from day one, motion-triggered yard audio, volume and output in the UI, and an automation that is just “set volume, pick the file.” They ran every test against live hardware.
+
+**Grok** implemented the integration (config flow, device, entities, MQTT hub, availability/heartbeat, branding) and kept the HA contract aligned with the Pi player as the yard setup evolved.
+
 ## Logo
 
-Simple green Sinclair-style sauropod on a solid light gray background.
+Green Sinclair-style sauropod on a solid light gray background.
 
-Home Assistant 2026.3+ serves brand images only as PNG from:
+Home Assistant serves brand images as PNG from:
 
 `custom_components/dino_media_player/brand/`
-
-Required names (light and dark, 1x and 2x):
 
 - `icon.png` / `icon@2x.png`
 - `dark_icon.png` / `dark_icon@2x.png`
 - `logo.png` / `logo@2x.png`
 - `dark_logo.png` / `dark_logo@2x.png`
 
-SVG copies (`logo.svg`, `brand/icon.svg`) are for GitHub. They are **not** used by `/api/brands/integration/dino_media_player/...`.
-
-Generate the PNG files from a clone:
-
-```bash
-python3 scripts/write_brand_pngs.py
-git add custom_components/dino_media_player/brand brand
-git commit -m "Add HA brand PNGs"
-git push
-```
-
-Then HACS → Update, restart HA, hard-refresh the browser.
+SVGs (`logo.svg`, `brand/icon.svg`) are for GitHub only.
 
 ## Device entities
 
 | Entity | Purpose |
 | --- | --- |
-| Availability | Connectivity. When off, the other entities on this device go unavailable. |
-| Media | Select populated from files in `/opt/dino-media-player/media` |
+| Availability | On when MQTT says online **and** a heartbeat arrived in the last 45 s. When off, the other entities go unavailable. |
+| Last heartbeat | Timestamp of the last Pi heartbeat (noisy in Activity — safe to disable). |
+| Media | Select. Idle option is `none`. Choosing a file **plays it**. Choosing `none` stops. |
+| Output | `3.5mm jack` or `BT-WUZHI` |
+| Volume | Number 0–100 |
 | Playback state | `playing` / `stopped` |
-| Current media | Filename now selected / playing |
-| Position | Seconds into the track |
-| Duration | Track length in seconds |
-| Play | Start the selected file |
+| Current media | Filename while playing |
+| Position / Duration | Seconds |
+| Bluetooth connected | On when A2DP to BT-WUZHI is up |
+| Bluetooth status | `connected` / `disconnected` / `reconnecting` / `not_required` |
 | Stop | Stop playback |
+| Reconnect Bluetooth | Force `bluetoothctl connect` |
 
-There is no pause/resume and no `media_player` entity.
+There is no Play button and no `media_player` entity. Play is “select the file.”
 
 ## Install (HACS)
 
@@ -57,32 +56,53 @@ There is no pause/resume and no `media_player` entity.
 2. Add `https://github.com/rbridal/ha-dino-media-player` as **Integration**
 3. Download, restart Home Assistant
 4. Settings → Devices & Services → Add Integration → **Dino Media Player**
-5. Set device name and MQTT topic prefix (`dino/player` unless you changed the Pi)
+5. Device name and MQTT topic prefix (`dino/player` unless you changed the Pi)
 
-Reconfigure later from the integration → Configure.
-
-After upgrading from v1, remove the old integration entry (it was a lone media player) and add it again so the device and new entities are created.
+Reconfigure later from the integration → Configure. Requires the MQTT integration and a reachable broker.
 
 ## Automation example
 
 ```yaml
 alias: Dino motion — play theme
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     entity_id: binary_sensor.YOUR_MOTION
     to: "on"
-action:
-  - service: select.select_option
+actions:
+  - action: number.set_value
     target:
-      entity_id: select.dino_yard_player_media
+      entity_id: number.dino_media_player_volume
     data:
-      option: jurassic_park_theme.mp3
-  - service: button.press
+      value: 75
+  - action: select.select_option
     target:
-      entity_id: button.dino_yard_player_play
+      entity_id: select.dino_media_player_media
+    data:
+      option: dino_theme.wav
 ```
 
-Entity IDs follow the device name you enter in the GUI.
+Entity IDs follow the device name you enter in the GUI. Stop with Stop, or set Media to `none`.
+
+Notify if the amp drops:
+
+```yaml
+alias: Dino Bluetooth dropped
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.dino_media_player_bluetooth_connected
+    to: "off"
+    for:
+      minutes: 2
+conditions:
+  - condition: state
+    entity_id: select.dino_media_player_output
+    state: "BT-WUZHI"
+actions:
+  - action: notify.mobile_app_your_iphone
+    data:
+      message: Dino amp Bluetooth is down
+```
 
 ## License
+
 MIT
