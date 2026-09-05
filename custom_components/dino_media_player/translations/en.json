@@ -18,12 +18,12 @@
     "step": {
       "init": {
         "title": "Dino Yard Player",
-        "description": "Offline alerts fire after the player stays unavailable for the chosen number of minutes. Pick a notify service or notify group (Rob's iPhone).",
+        "description": "Uses one notifier and one delay for two conditions: the player stays unavailable, or Bluetooth is selected as the output and stays disconnected.",
         "data": {
           "name": "Device name",
           "topic_prefix": "MQTT topic prefix",
-          "alert_enabled": "Notify when offline",
-          "alert_minutes": "Minutes offline before notify",
+          "alert_enabled": "Notify when offline or Bluetooth is down",
+          "alert_minutes": "Minutes before notify",
           "notify_service": "Notifier"
         }
       }

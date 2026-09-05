@@ -8,7 +8,7 @@ Custom integration that exposes the outdoor Raspberry Pi player as a **device** 
 
 Companion service: [dino-media-player](https://github.com/rbridal/dino-media-player).
 
-HACS custom repo. Current integration version: **2.5.0**.
+HACS custom repo. Current integration version: **2.6.0**.
 
 ## Credits
 
@@ -50,27 +50,20 @@ SVGs (`logo.svg`, `brand/icon.svg`) are for GitHub only.
 
 There is no Play button and no `media_player` entity. Play is “select the file.”
 
-## Offline alert (built in)
+## Alerts (built in)
 
 Settings → Devices & Services → Dino Media Player → **Configure**:
 
-- **Notify when offline** — enable
-- **Minutes offline before notify** — default 5
-- **Notifier** — dropdown of every `notify.*` service, including notify groups
+- **Notify when offline or Bluetooth is down**
+- **Minutes before notify** — default 5
+- **Notifier** — dropdown of every `notify.*` service, including groups such as Rob’s iPhone
 
-After the player stays unavailable that long, the chosen notifier gets a push. Reminders repeat every 30 minutes until it comes back, then a “back online” message is sent (same iOS notification tag, so the banner replaces itself).
+The same notifier and delay apply to both conditions:
 
-Create a group if you want a stable name for Rob’s iPhone:
+1. The player stays unavailable.
+2. Output is Bluetooth (`BT-WUZHI`) and the amp stays disconnected. This does not fire while the player itself is offline, or when the 3.5mm jack is selected.
 
-```yaml
-notify:
-  - platform: group
-    name: rob_iphone
-    services:
-      - action: mobile_app_rob_s_iphone
-```
-
-Then pick `notify.rob_iphone` in the dropdown. You do **not** need a separate `alert:` block in `configuration.yaml`.
+Reminders repeat every 30 minutes until the condition clears. A recovery message uses the same iOS notification tag so the banner replaces itself.
 
 ## Install (HACS)
 
