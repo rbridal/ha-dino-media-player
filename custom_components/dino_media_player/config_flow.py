@@ -30,11 +30,28 @@ from .const import (
     DOMAIN,
 )
 
+SKIP_NOTIFY_SERVICES = {"send_message", "persistent_notification", "notify"}
 
-def _notify_choices(hass: HomeAssistant) -> list[str]:
+
+def _notify_choices(hass: HomeAssistant) -> list[dict[str, str]]:
+    options: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for state in hass.states.async_all("notify"):
+        eid = state.entity_id
+        if eid.rsplit(".", 1)[-1] in SKIP_NOTIFY_SERVICES:
+            continue
+        label = state.name or eid
+        options.append({"label": f"{label} ({eid})", "value": eid})
+        seen.add(eid)
     services = hass.services.async_services().get("notify", {})
-    names = sorted(name for name in services if name != "send_message")
-    return [f"notify.{name}" for name in names]
+    for name in services:
+        if name in SKIP_NOTIFY_SERVICES:
+            continue
+        eid = f"notify.{name}"
+        if eid in seen:
+            continue
+        options.append({"label": eid, "value": eid})
+    return sorted(options, key=lambda item: item["label"].lower())
 
 
 def _user_schema(name: str, prefix: str) -> vol.Schema:
@@ -56,6 +73,7 @@ def _options_schema(
     persistent: bool,
 ) -> vol.Schema:
     choices = _notify_choices(hass)
+    values = [item["value"] for item in choices]
     schema: dict[Any, Any] = {
         vol.Required(CONF_NAME, default=name): str,
         vol.Required(CONF_TOPIC_PREFIX, default=prefix): str,
@@ -68,7 +86,7 @@ def _options_schema(
         vol.Required(CONF_PERSISTENT_NOTIFICATION, default=persistent): BooleanSelector(),
     }
     if choices:
-        default_notify = notify_service if notify_service in choices else choices[0]
+        default_notify = notify_service if notify_service in values else values[0]
         schema[vol.Optional(CONF_NOTIFY_SERVICE, default=default_notify)] = SelectSelector(
             SelectSelectorConfig(options=choices, mode=SelectSelectorMode.DROPDOWN)
         )

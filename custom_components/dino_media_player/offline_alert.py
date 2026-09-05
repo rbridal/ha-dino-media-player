@@ -68,13 +68,15 @@ class OfflineAlert:
         except (TypeError, ValueError):
             return DEFAULT_ALERT_MINUTES
 
-    def _notify_service(self) -> str | None:
+    def _notify_target(self) -> str | None:
         raw = str(self.hub.entry.options.get(CONF_NOTIFY_SERVICE, "")).strip()
         if not raw:
             return None
-        if raw.startswith("notify."):
-            raw = raw[7:]
-        return raw or None
+        if not raw.startswith("notify."):
+            raw = f"notify.{raw}"
+        if raw in {"notify.notify", "notify.persistent_notification", "notify.send_message"}:
+            return None
+        return raw
 
     def _cancel(self, unsub: Callable[[], None] | None) -> None:
         if unsub:
@@ -104,7 +106,7 @@ class OfflineAlert:
 
     @callback
     def _on_update(self) -> None:
-        enabled = self._enabled() and (bool(self._notify_service()) or self._persistent())
+        enabled = self._enabled() and (bool(self._notify_target()) or self._persistent())
         self._track(
             problem=enabled and not self.hub.available,
             notified_attr="_offline_notified",
@@ -154,43 +156,63 @@ class OfflineAlert:
                 return
         self._schedule_send(kind, False)
 
+    async def _async_notify_target(self, title: str, message: str, tag: str) -> None:
+        target = self._notify_target()
+        if not target:
+            return
+        try:
+            if self.hass.states.get(target) is not None:
+                await self.hass.services.async_call(
+                    "notify",
+                    "send_message",
+                    {
+                        "title": title,
+                        "message": message,
+                        "entity_id": target,
+                    },
+                    blocking=False,
+                )
+            else:
+                await self.hass.services.async_call(
+                    "notify",
+                    target.removeprefix("notify."),
+                    {
+                        "title": title,
+                        "message": message,
+                        "data": {
+                            "tag": tag,
+                            "push": {"sound": {"name": "default"}},
+                        },
+                    },
+                    blocking=False,
+                )
+            _LOGGER.info("Sent alert to %s", target)
+        except Exception:
+            _LOGGER.exception("Dino notify failed via %s", target)
+
     async def _async_send(self, kind: str, recovered: bool) -> None:
-        name = self.hub.name
+        title = self.hub.name
         minutes = self._minutes()
         if kind == "offline":
             tag = TAG_OFFLINE
             if recovered:
-                message = f"{name} is back online."
+                message = f"{title} is back online."
             else:
-                message = f"{name} has been unavailable for {minutes} minutes or more."
+                message = f"{title} has been unavailable for {minutes} minutes or more."
                 self._offline_notified = True
         else:
             tag = TAG_BLUETOOTH
             output = self.hub.output or "Bluetooth"
             if recovered:
-                message = f"{name} Bluetooth ({output}) is connected again."
+                message = f"{title} Bluetooth ({output}) is connected again."
             else:
                 message = (
-                    f"{name} output is {output}, but Bluetooth has been disconnected "
+                    f"{title} output is {output}, but Bluetooth has been disconnected "
                     f"for {minutes} minutes or more."
                 )
                 self._bt_notified = True
 
-        service = self._notify_service()
-        if service:
-            payload = {
-                "title": "Dino yard",
-                "message": message,
-                "data": {
-                    "tag": tag,
-                    "push": {"sound": {"name": "default"}},
-                },
-            }
-            try:
-                await self.hass.services.async_call("notify", service, payload, blocking=False)
-                _LOGGER.info("Sent %s alert via notify.%s recovered=%s", kind, service, recovered)
-            except Exception:
-                _LOGGER.exception("Dino notify failed via notify.%s", service)
+        await self._async_notify_target(title, message, tag)
 
         if self._persistent():
             try:
@@ -206,7 +228,7 @@ class OfflineAlert:
                         "persistent_notification",
                         "create",
                         {
-                            "title": "Dino yard",
+                            "title": title,
                             "message": message,
                             "notification_id": tag,
                         },
