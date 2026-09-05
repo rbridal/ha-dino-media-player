@@ -18,10 +18,13 @@
     "step": {
       "init": {
         "title": "Dino Yard Player",
-        "description": "Topic prefix must match the Pi service.",
+        "description": "Offline alerts fire after the player stays unavailable for the chosen number of minutes. Pick a notify service or notify group (Rob's iPhone).",
         "data": {
           "name": "Device name",
-          "topic_prefix": "MQTT topic prefix"
+          "topic_prefix": "MQTT topic prefix",
+          "alert_enabled": "Notify when offline",
+          "alert_minutes": "Minutes offline before notify",
+          "notify_service": "Notifier"
         }
       }
     }
