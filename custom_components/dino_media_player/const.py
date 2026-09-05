@@ -6,6 +6,7 @@ CONF_TOPIC_PREFIX = "topic_prefix"
 CONF_ALERT_ENABLED = "alert_enabled"
 CONF_ALERT_MINUTES = "alert_minutes"
 CONF_NOTIFY_SERVICE = "notify_service"
+CONF_PERSISTENT_NOTIFICATION = "persistent_notification"
 
 DEFAULT_TOPIC_PREFIX = "dino/player"
 DEFAULT_NAME = "Dino Yard Player"

@@ -8,7 +8,7 @@ Custom integration that exposes the outdoor Raspberry Pi player as a **device** 
 
 Companion service: [dino-media-player](https://github.com/rbridal/dino-media-player).
 
-HACS custom repo. Current integration version: **2.6.0**.
+HACS custom repo. Current integration version: **2.7.0**.
 
 ## Credits
 
@@ -56,14 +56,15 @@ Settings → Devices & Services → Dino Media Player → **Configure**:
 
 - **Notify when offline or Bluetooth is down**
 - **Minutes before notify** — default 5
-- **Notifier** — dropdown of every `notify.*` service, including groups such as Rob’s iPhone
+- **Notifier** — dropdown of every `notify.*` service, including groups such as `notify.rob_and_helen`
+- **Also create a persistent notification in Home Assistant** — checkbox; independent of the notifier
 
-The same notifier and delay apply to both conditions:
+The same notifier, delay, and persistent-notification setting apply to both conditions:
 
 1. The player stays unavailable.
 2. Output is Bluetooth (`BT-WUZHI`) and the amp stays disconnected. This does not fire while the player itself is offline, or when the 3.5mm jack is selected.
 
-Reminders repeat every 30 minutes until the condition clears. A recovery message uses the same iOS notification tag so the banner replaces itself.
+Reminders repeat every 30 minutes until the condition clears. A recovery message uses the same iOS notification tag so the banner replaces itself. Persistent notifications are dismissed when the condition clears.
 
 ## Install (HACS)
 

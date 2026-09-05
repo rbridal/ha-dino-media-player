@@ -22,6 +22,7 @@ from .const import (
     CONF_ALERT_ENABLED,
     CONF_ALERT_MINUTES,
     CONF_NOTIFY_SERVICE,
+    CONF_PERSISTENT_NOTIFICATION,
     CONF_TOPIC_PREFIX,
     DEFAULT_ALERT_MINUTES,
     DEFAULT_NAME,
@@ -52,6 +53,7 @@ def _options_schema(
     alert_enabled: bool,
     alert_minutes: int,
     notify_service: str,
+    persistent: bool,
 ) -> vol.Schema:
     choices = _notify_choices(hass)
     schema: dict[Any, Any] = {
@@ -63,6 +65,7 @@ def _options_schema(
                 min=1, max=120, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
             )
         ),
+        vol.Required(CONF_PERSISTENT_NOTIFICATION, default=persistent): BooleanSelector(),
     }
     if choices:
         default_notify = notify_service if notify_service in choices else choices[0]
@@ -119,5 +122,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 bool(opts.get(CONF_ALERT_ENABLED, False)),
                 int(opts.get(CONF_ALERT_MINUTES, DEFAULT_ALERT_MINUTES)),
                 str(opts.get(CONF_NOTIFY_SERVICE, "")),
+                bool(opts.get(CONF_PERSISTENT_NOTIFICATION, False)),
             ),
         )

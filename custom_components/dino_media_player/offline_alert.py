@@ -13,6 +13,7 @@ from .const import (
     CONF_ALERT_ENABLED,
     CONF_ALERT_MINUTES,
     CONF_NOTIFY_SERVICE,
+    CONF_PERSISTENT_NOTIFICATION,
     DEFAULT_ALERT_MINUTES,
 )
 from .hub import DinoHub
@@ -58,6 +59,9 @@ class OfflineAlert:
     def _enabled(self) -> bool:
         return bool(self.hub.entry.options.get(CONF_ALERT_ENABLED, False))
 
+    def _persistent(self) -> bool:
+        return bool(self.hub.entry.options.get(CONF_PERSISTENT_NOTIFICATION, False))
+
     def _minutes(self) -> int:
         try:
             return max(1, int(self.hub.entry.options.get(CONF_ALERT_MINUTES, DEFAULT_ALERT_MINUTES)))
@@ -100,7 +104,7 @@ class OfflineAlert:
 
     @callback
     def _on_update(self) -> None:
-        enabled = self._enabled() and bool(self._notify_service())
+        enabled = self._enabled() and (bool(self._notify_service()) or self._persistent())
         self._track(
             problem=enabled and not self.hub.available,
             notified_attr="_offline_notified",
@@ -151,9 +155,6 @@ class OfflineAlert:
         self._schedule_send(kind, False)
 
     async def _async_send(self, kind: str, recovered: bool) -> None:
-        service = self._notify_service()
-        if not service:
-            return
         name = self.hub.name
         minutes = self._minutes()
         if kind == "offline":
@@ -174,16 +175,42 @@ class OfflineAlert:
                     f"for {minutes} minutes or more."
                 )
                 self._bt_notified = True
-        payload = {
-            "title": "Dino yard",
-            "message": message,
-            "data": {
-                "tag": tag,
-                "push": {"sound": {"name": "default"}},
-            },
-        }
-        try:
-            await self.hass.services.async_call("notify", service, payload, blocking=False)
-            _LOGGER.info("Sent %s alert via notify.%s recovered=%s", kind, service, recovered)
-        except Exception:
-            _LOGGER.exception("Dino notify failed via notify.%s", service)
+
+        service = self._notify_service()
+        if service:
+            payload = {
+                "title": "Dino yard",
+                "message": message,
+                "data": {
+                    "tag": tag,
+                    "push": {"sound": {"name": "default"}},
+                },
+            }
+            try:
+                await self.hass.services.async_call("notify", service, payload, blocking=False)
+                _LOGGER.info("Sent %s alert via notify.%s recovered=%s", kind, service, recovered)
+            except Exception:
+                _LOGGER.exception("Dino notify failed via notify.%s", service)
+
+        if self._persistent():
+            try:
+                if recovered:
+                    await self.hass.services.async_call(
+                        "persistent_notification",
+                        "dismiss",
+                        {"notification_id": tag},
+                        blocking=False,
+                    )
+                else:
+                    await self.hass.services.async_call(
+                        "persistent_notification",
+                        "create",
+                        {
+                            "title": "Dino yard",
+                            "message": message,
+                            "notification_id": tag,
+                        },
+                        blocking=False,
+                    )
+            except Exception:
+                _LOGGER.exception("Persistent notification failed for %s", kind)
