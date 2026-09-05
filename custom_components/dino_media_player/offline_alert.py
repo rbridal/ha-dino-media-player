@@ -43,8 +43,8 @@ class OfflineAlert:
         self._bt_connected_since: float | None = None
 
     def async_start(self) -> None:
-        self._unsub_listener = self.hub.async_add_listener(self._on_update)
-        self._on_update()
+        self._unsub_listener = self.hub.async_add_listener(self._on_hub_update)
+        self._on_hub_update()
 
     def async_stop(self) -> None:
         self._cancel(self._offline_timer)
@@ -76,8 +76,10 @@ class OfflineAlert:
         if unsub:
             unsub()
 
+    def _schedule_send(self, kind: str, recovered: bool) -> None:
+        self.hass.add_job(self._async_send(kind, recovered))
+
     def _bluetooth_healthy(self) -> bool:
-        """True only after Connected has held for BT_STABLE_SECONDS."""
         if not self.hub.bluetooth_connected:
             self._bt_connected_since = None
             return False
@@ -92,6 +94,9 @@ class OfflineAlert:
             self._bt_connected_since = None
             return False
         return not self._bluetooth_healthy()
+
+    def _on_hub_update(self) -> None:
+        self.hass.loop.call_soon_threadsafe(self._on_update)
 
     @callback
     def _on_update(self) -> None:
@@ -109,6 +114,7 @@ class OfflineAlert:
             kind="bluetooth",
         )
 
+    @callback
     def _track(self, problem: bool, notified_attr: str, timer_attr: str, kind: str) -> None:
         notified = getattr(self, notified_attr)
         timer = getattr(self, timer_attr)
@@ -118,7 +124,7 @@ class OfflineAlert:
                 setattr(self, timer_attr, None)
             if notified:
                 setattr(self, notified_attr, False)
-                self.hass.async_create_task(self._async_send(kind, recovered=True))
+                self._schedule_send(kind, True)
             return
         if timer is None:
             delay = (
@@ -142,7 +148,7 @@ class OfflineAlert:
             self._bt_timer = None
             if not self._bluetooth_problem() or not self._enabled():
                 return
-        self.hass.async_create_task(self._async_send(kind, recovered=False))
+        self._schedule_send(kind, False)
 
     async def _async_send(self, kind: str, recovered: bool) -> None:
         service = self._notify_service()
