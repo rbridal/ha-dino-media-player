@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import timedelta
 import logging
+import time
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
@@ -18,6 +19,7 @@ from .hub import DinoHub
 
 _LOGGER = logging.getLogger(__name__)
 REPEAT_SECONDS = 30 * 60
+BT_STABLE_SECONDS = 30
 TAG_OFFLINE = "dino-player-unavailable"
 TAG_BLUETOOTH = "dino-player-bluetooth"
 
@@ -38,6 +40,7 @@ class OfflineAlert:
         self._bt_timer: Callable[[], None] | None = None
         self._offline_notified = False
         self._bt_notified = False
+        self._bt_connected_since: float | None = None
 
     def async_start(self) -> None:
         self._unsub_listener = self.hub.async_add_listener(self._on_update)
@@ -73,12 +76,22 @@ class OfflineAlert:
         if unsub:
             unsub()
 
+    def _bluetooth_healthy(self) -> bool:
+        """True only after Connected has held for BT_STABLE_SECONDS."""
+        if not self.hub.bluetooth_connected:
+            self._bt_connected_since = None
+            return False
+        now = time.monotonic()
+        if self._bt_connected_since is None:
+            self._bt_connected_since = now
+            return False
+        return (now - self._bt_connected_since) >= BT_STABLE_SECONDS
+
     def _bluetooth_problem(self) -> bool:
-        return (
-            self.hub.available
-            and _is_bluetooth_output(self.hub.output)
-            and not self.hub.bluetooth_connected
-        )
+        if not self.hub.available or not _is_bluetooth_output(self.hub.output):
+            self._bt_connected_since = None
+            return False
+        return not self._bluetooth_healthy()
 
     @callback
     def _on_update(self) -> None:
@@ -165,5 +178,6 @@ class OfflineAlert:
         }
         try:
             await self.hass.services.async_call("notify", service, payload, blocking=False)
+            _LOGGER.info("Sent %s alert via notify.%s recovered=%s", kind, service, recovered)
         except Exception:
             _LOGGER.exception("Dino notify failed via notify.%s", service)
