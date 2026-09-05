@@ -8,7 +8,7 @@ Custom integration that exposes the outdoor Raspberry Pi player as a **device** 
 
 Companion service: [dino-media-player](https://github.com/rbridal/dino-media-player).
 
-HACS custom repo. Current integration version: **2.4.0**.
+HACS custom repo. Current integration version: **2.5.0**.
 
 ## Credits
 
@@ -50,6 +50,28 @@ SVGs (`logo.svg`, `brand/icon.svg`) are for GitHub only.
 
 There is no Play button and no `media_player` entity. Play is “select the file.”
 
+## Offline alert (built in)
+
+Settings → Devices & Services → Dino Media Player → **Configure**:
+
+- **Notify when offline** — enable
+- **Minutes offline before notify** — default 5
+- **Notifier** — dropdown of every `notify.*` service, including notify groups
+
+After the player stays unavailable that long, the chosen notifier gets a push. Reminders repeat every 30 minutes until it comes back, then a “back online” message is sent (same iOS notification tag, so the banner replaces itself).
+
+Create a group if you want a stable name for Rob’s iPhone:
+
+```yaml
+notify:
+  - platform: group
+    name: rob_iphone
+    services:
+      - action: mobile_app_rob_s_iphone
+```
+
+Then pick `notify.rob_iphone` in the dropdown. You do **not** need a separate `alert:` block in `configuration.yaml`.
+
 ## Install (HACS)
 
 1. HACS → Integrations → Custom repositories
@@ -82,26 +104,6 @@ actions:
 ```
 
 Entity IDs follow the device name you enter in the GUI. Stop with Stop, or set Media to `none`.
-
-Notify if the amp drops:
-
-```yaml
-alias: Dino Bluetooth dropped
-triggers:
-  - trigger: state
-    entity_id: binary_sensor.dino_media_player_bluetooth_connected
-    to: "off"
-    for:
-      minutes: 2
-conditions:
-  - condition: state
-    entity_id: select.dino_media_player_output
-    state: "BT-WUZHI"
-actions:
-  - action: notify.mobile_app_your_iphone
-    data:
-      message: Dino amp Bluetooth is down
-```
 
 ## License
 
