@@ -3,7 +3,8 @@
 Home Assistant custom integration (HACS) for the outdoor Dino media player.
 
 ## Ownership
-- **Masta-Rob** owns this home project DIRECTIVES.md. Flag Rob only for policy changes.
+- **Casa-Rob** owns this home project. Masta-Rob only routes.
+- Flag Rob only for real policy changes.
 
 ## Safety (always wins)
 - No device credentials in git.
@@ -20,4 +21,5 @@ Home Assistant custom integration (HACS) for the outdoor Dino media player.
 - No secrets in git. MyHACS approve policy. No voice-assistant exposure.
 
 ## Change log
-- 2026-11-04 — Masta-Rob — Initial DIRECTIVES.md (Rob's OK: yes, pt1410u).
+- 2026-11-04 — Masta-Rob — Initial DIRECTIVES.md.
+- 2026-11-13 — Rob — Ownership moved to Casa-Rob (home).
